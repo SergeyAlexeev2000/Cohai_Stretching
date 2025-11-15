@@ -55,3 +55,4 @@ def create_guest_visit(
 ):
     service = LeadService(db)
     return service.create_guest_visit(payload)
+
