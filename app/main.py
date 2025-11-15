@@ -23,6 +23,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get("/", tags=["meta"])
+def root():
+    """
+    Простой корневой эндпоинт.
+    Удобен как health-check и подсказка, где искать документацию.
+    """
+    return {
+        "app": "Cohai Stretchching API",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "api_prefix": "/api/v1",
+    }
 
 # Регистрируем роутеры
 app.include_router(public.router, prefix="/api/v1")
