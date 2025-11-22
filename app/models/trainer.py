@@ -1,3 +1,4 @@
+# app/models/trainer.py
 from __future__ import annotations
 
 from typing import List, Optional, TYPE_CHECKING
@@ -26,4 +27,5 @@ class Trainer(Base):
 
 
 __all__ = ["Trainer"]
+
 

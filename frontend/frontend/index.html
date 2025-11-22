@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Cohai Stretching – Demo Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            max-width: 900px;
+        }
+        h1, h2 {
+            margin-top: 32px;
+        }
+        select, input, button {
+            margin: 6px 0;
+            padding: 8px;
+            font-size: 16px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cohai Stretching — Mock Frontend</h1>
+
+    <!-- ЛОКАЦИИ -->
+    <h2>1. Выберите локацию</h2>
+    <select id="locationSelect"></select>
+
+    <!-- РАСПИСАНИЕ -->
+    <h2>2. Расписание</h2>
+    <div id="schedule"></div>
+
+    <!-- АБОНЕМЕНТЫ -->
+    <h2>3. Абонементы</h2>
+    <div id="memberships"></div>
+
+    <!-- ГОСТЕВОЙ ВИЗИТ -->
+    <h2>4. Записаться на гостевой визит</h2>
+    <form id="leadForm">
+        <input type="text" id="firstName" placeholder="Имя" required><br>
+        <input type="text" id="lastName" placeholder="Фамилия"><br>
+        <input type="email" id="email" placeholder="Email"><br>
+        <input type="text" id="phone" placeholder="Телефон" required><br>
+
+        <label>Тип программы:</label><br>
+        <select id="programTypeSelect"></select><br>
+
+        <button type="submit">Отправить</button>
+    </form>
+
+    <p id="leadStatus"></p>
+
+<script>
+const API = "http://localhost:8000/api/v1";
+
+async function loadLocations() {
+    const res = await fetch(`${API}/locations`);
+    const data = await res.json();
+    const sel = document.getElementById("locationSelect");
+    sel.innerHTML = "";
+    data.forEach(loc =>
+        sel.innerHTML += `<option value="${loc.id}">${loc.name}</option>`
+    );
+
+    await loadProgramTypes();
+    updateAll();
+}
+
+async function loadProgramTypes() {
+    const res = await fetch(`${API}/program-types`);
+    const data = await res.json();
+    const sel = document.getElementById("programTypeSelect");
+    sel.innerHTML = "";
+    data.forEach(pt =>
+        sel.innerHTML += `<option value="${pt.id}">${pt.name}</option>`
+    );
+}
+
+async function updateAll() {
+    const locId = document.getElementById("locationSelect").value;
+    loadSchedule(locId);
+    loadMemberships(locId);
+}
+
+async function loadSchedule(locationId) {
+    const res = await fetch(`${API}/schedule?location_id=${locationId}`);
+    const data = await res.json();
+    const box = document.getElementById("schedule");
+    box.innerHTML = "";
+
+    data.forEach(s => {
+        box.innerHTML += `
+            <div class="card">
+                <b>Программа #${s.program_type_id}</b><br>
+                Время: ${s.start_time} — ${s.end_time}<br>
+                Длительность: ${s.duration_minutes} мин<br>
+                Тренер: #${s.trainer_id}<br>
+                Мест: ${s.capacity}
+            </div>
+        `;
+    });
+}
+
+async function loadMemberships(locationId) {
+    const res = await fetch(`${API}/memberships?location_id=${locationId}`);
+    const data = await res.json();
+    const box = document.getElementById("memberships");
+    box.innerHTML = "";
+
+    data.forEach(m => {
+        box.innerHTML += `
+            <div class="card">
+                <b>${m.name}</b><br>
+                ID: ${m.id}
+            </div>
+        `;
+    });
+}
+
+document.getElementById("locationSelect")
+    .addEventListener("change", updateAll);
+
+document.getElementById("leadForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const payload = {
+        first_name: firstName.value,
+        last_name: lastName.value,
+        email: email.value,
+        phone: phone.value,
+        location_id: parseInt(locationSelect.value),
+        program_type_id: parseInt(programTypeSelect.value),
+        notes: null
+    };
+
+    const res = await fetch(`${API}/leads/guest-visit`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+    document.getElementById("leadStatus").innerText =
+        "Лид успешно создан! ID = " + result.id;
+});
+
+loadLocations();
+</script>
+</body>
+</html>

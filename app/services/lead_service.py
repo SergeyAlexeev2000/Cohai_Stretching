@@ -18,17 +18,10 @@ class LeadService:
         self.repo = LeadRepository(db)
 
     def create_guest_visit(self, payload: LeadCreateGuestVisit) -> Lead:
-        """
-        Создать запрос на гостевой визит.
-        """
-        # Здесь может быть бизнес-логика:
-        # - проверка уникальности телефона
-        # - проверка существования локации
-        # - логирование
-        # - отправка уведомлений и т.п.
-
-        lead = self.repo.create_guest_visit(payload)
+        data = payload.model_dump()   # <<--- добавить эту строку
+        lead = self.repo.create_guest_visit(data)
         return lead
+
 
     def get_all(self):
         """
