@@ -1,17 +1,17 @@
+# app/models/class_session.py
 from __future__ import annotations
 
-from datetime import time
+from datetime import datetime, time
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Time
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
 if TYPE_CHECKING:
-    # Эти импорты нужны только для type-checker (Pylance / mypy и т.п.)
-    # Во время реального запуска Python они не выполняются, поэтому
-    # циклического импорта с trainer/location/... не возникает.
+    # Эти импорты нужны только для type-checker,
+    # в рантайме не выполняются.
     from app.models.location import Location
     from app.models.program_type import ProgramType
     from app.models.membership import MembershipPlan
@@ -22,6 +22,8 @@ class ClassSession(Base):
     __tablename__ = "class_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     # Связи по внешним ключам
     location_id: Mapped[int] = mapped_column(
@@ -43,15 +45,15 @@ class ClassSession(Base):
 
     # Расписание
     weekday: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )  # 0 = Monday ... 6 = Sunday
+        Integer, nullable=False  # 0 = Monday ... 6 = Sunday
+    )
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
     end_time: Mapped[time] = mapped_column(Time, nullable=False)
 
     capacity: Mapped[int] = mapped_column(Integer, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # ORM-связи
+    # ORM-связи (симметричны моделям Location/ProgramType/Trainer/MembershipPlan)
     location: Mapped["Location"] = relationship(
         "Location",
         back_populates="class_sessions",

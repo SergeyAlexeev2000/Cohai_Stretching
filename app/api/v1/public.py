@@ -1,7 +1,10 @@
-print("LOADING public.py, __name__ =", __name__)
+# app/api/v1/public.py
 
-from fastapi import APIRouter, Depends, Query
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+
 
 from app.api.v1.deps import get_db
 from app.repositories.location_repo import LocationRepository
@@ -14,6 +17,7 @@ from app.schemas.program_type import ProgramTypeRead
 from app.services.lead_service import LeadService
 from app.services.membership_service import MembershipService
 from app.services.schedule_service import ScheduleService
+from app.core.exceptions import AppError
 
 router = APIRouter(tags=["public"])
 
@@ -41,11 +45,48 @@ def get_schedule(
 
 @router.get("/memberships", response_model=list[MembershipPlanRead])
 def get_memberships(
-    location_id: int = Query(...),
+    location_id: Optional[int] = Query(
+        default=None,
+        description="Фильтрация по локации. Если не задано — вернуть тарифы по всем локациям.",
+    ),
     db: Session = Depends(get_db),
 ):
+    """
+    Публичный список абонементов.
+
+    - Если location_id не передан — возвращаем все активные тарифы по всем локациям.
+    - Если location_id передан — валидируем существование локации, затем фильтруем.
+    """
+    # Валидация location_id, если он указан
+    if location_id is not None:
+        loc_repo = LocationRepository(db)
+        location = loc_repo.get_by_id(location_id)
+        if location is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Location with id={location_id} not found",
+            )
+    
     service = MembershipService(db)
-    return service.list_for_location(location_id)
+    # only_active=True — для публичного API показываем только актуальные тарифы
+    return service.list_all(location_id=location_id, only_active=True)
+
+@router.get("/memberships/{membership_id}", response_model=MembershipPlanRead)
+def get_membership(
+    membership_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Публичный эндпоинт: один абонемент по id.
+    """
+    service = MembershipService(db)
+    plan = service.get(membership_id)
+    if plan is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Membership with id={membership_id} not found",
+        )
+    return plan
 
 
 @router.post("/leads/guest-visit", response_model=LeadRead)
@@ -55,4 +96,5 @@ def create_guest_visit(
 ):
     service = LeadService(db)
     return service.create_guest_visit(payload)
+
 
