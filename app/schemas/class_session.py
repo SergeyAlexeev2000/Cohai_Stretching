@@ -45,8 +45,30 @@ class ClassSessionRead(ClassSessionBase):
         return int((dt_end - dt_start).total_seconds() // 60)
 
 
+class ClassSessionUpdate(BaseModel):
+    """
+    Для частичного обновления (PATCH).
+
+    Все поля опциональны: обновляем только то, что пришло.
+    """
+    weekday: Optional[int] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+
+    location_id: Optional[int] = None
+    program_type_id: Optional[int] = None
+    trainer_id: Optional[int] = None
+    membership_plan_id: Optional[int] = None
+
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 __all__ = [
     "ClassSessionBase",
     "ClassSessionCreate",
     "ClassSessionRead",
+    "ClassSessionUpdate",
 ]

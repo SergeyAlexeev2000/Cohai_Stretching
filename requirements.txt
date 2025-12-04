@@ -1,25 +1,29 @@
-# --- сервер ---
-uvicorn==0.38.0
-fastapi==0.115.2
-
-# --- ORM ---
-sqlalchemy==2.0.36
-
-# --- Pydantic v2 ---
-pydantic==2.9.2
-pydantic-core==2.23.4
-
-# --- Утилиты и консольные зависимости ---
+alembic==1.17.2
+annotated-types==0.7.0
+anyio==4.11.0
+certifi==2025.11.12
 click==8.3.0
 colorama==0.4.6
-
-# --- ASGI протокол ---
+dnspython==2.8.0
+email-validator==2.3.0
+fastapi==0.115.2
 h11==0.16.0
-
-# --- Тестирование ---
-pytest==9.0.1
+httpcore==1.0.9
 httpx==0.27.2
-pytest-asyncio==0.24.0     # для async тестов FastAPI (не обязательно, но рекомендуется)
-
-# --- В случае, если хочешь делать CORS ---
+idna==3.11
+iniconfig==2.3.0
+Mako==1.3.10
+MarkupSafe==3.0.3
+packaging==25.0
+pluggy==1.6.0
+pydantic==2.9.2
+pydantic_core==2.23.4
+pytest==8.3.3
+pytest-asyncio==0.24.0
+sniffio==1.3.1
+SQLAlchemy==2.0.36
 starlette==0.40.0
+typing_extensions==4.15.0
+uvicorn==0.38.0
+python-jose[cryptography]
+passlib[bcrypt]

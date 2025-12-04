@@ -1,135 +1,130 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  fetchLocations,
-  fetchProgramTypes,
-  fetchSchedule,
-  fetchMemberships,
-  createGuestVisit,
-} from './api';
-import { LocationSelect } from './components/LocationSelect';
-import { ScheduleList } from './components/ScheduleList';
-import { MembershipList } from './components/MembershipList';
-import { LeadForm } from './components/LeadForm';
+// src/App.jsx
+import React, { useState } from 'react';
+import { Routes, Route, NavLink, Outlet } from 'react-router-dom';
 
-function App() {
-  const [locations, setLocations] = useState([]);
-  const [programTypes, setProgramTypes] = useState([]);
-  const [selectedLocationId, setSelectedLocationId] = useState(null);
+import HomePage from './pages/HomePage.jsx';
+import NewbieGuidePage from './pages/NewbieGuidePage.jsx';
+import FormatsPage from './pages/FormatsPage.jsx';
+import SchedulePage from './pages/SchedulePage.jsx';
+import PricesPage from './pages/PricesPage.jsx';
+import TrainersPage from './pages/TrainersPage.jsx';
+import ContactsPage from './pages/ContactsPage.jsx';
 
-  const [schedule, setSchedule] = useState([]);
-  const [memberships, setMemberships] = useState([]);
+const NAV_ITEMS = [
+  { to: '/', label: 'Главная' },
+  { to: '/newbie', label: 'Новичку' },
+  { to: '/formats', label: 'Форматы' },
+  { to: '/schedule', label: 'Расписание' },
+  { to: '/prices', label: 'Цены' },
+  { to: '/trainers', label: 'Тренеры' },
+  { to: '/contacts', label: 'Контакты' },
+];
 
-  const [loading, setLoading] = useState(true);
-  const [leadStatus, setLeadStatus] = useState('');
+function AppLayout() {
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const programTypesById = useMemo(() => {
-    const map = {};
-    for (const pt of programTypes) {
-      map[pt.id] = pt.name;
-    }
-    return map;
-  }, [programTypes]);
-
-  // Загружаем локации и типы программ при старте
-  useEffect(() => {
-    async function init() {
-      try {
-        setLoading(true);
-        const [locs, pts] = await Promise.all([
-          fetchLocations(),
-          fetchProgramTypes(),
-        ]);
-        setLocations(locs);
-        setProgramTypes(pts);
-        if (locs.length > 0) {
-          setSelectedLocationId(locs[0].id);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    init();
-  }, []);
-
-  // При смене локации подгружаем расписание и абонементы
-  useEffect(() => {
-    if (!selectedLocationId) return;
-
-    async function loadData() {
-      try {
-        const [sch, mem] = await Promise.all([
-          fetchSchedule(selectedLocationId),
-          fetchMemberships(selectedLocationId),
-        ]);
-        setSchedule(sch);
-        setMemberships(mem);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    loadData();
-  }, [selectedLocationId]);
-
-  async function handleCreateLead(payload) {
-    try {
-      setLeadStatus('Отправляем заявку...');
-      const result = await createGuestVisit(payload);
-      setLeadStatus(`Заявка отправлена! ID лида: ${result.id}`);
-    } catch (e) {
-      console.error(e);
-      setLeadStatus('Ошибка при отправке заявки');
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-xl text-white">
-        Загрузка...
-      </div>
-    );
-  }
+  const linkClasses = ({ isActive }) =>
+    [
+      'transition-colors duration-200',
+      'text-sm font-medium',
+      isActive
+        ? 'text-pink-400'
+        : 'text-neutral-300 hover:text-white',
+    ].join(' ');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 text-white">
-      <h1 className="text-4xl font-bold mb-8">Cohai Stretching — Frontend</h1>
+    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
+      {/* HEADER */}
+      <header className="border-b border-neutral-800 bg-neutral-950/85 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          {/* Логотип / бренд */}
+          <div className="flex flex-col">
+            <span className="text-lg font-semibold tracking-tight">
+              Cohai Stretching
+            </span>
+            <span className="hidden sm:inline text-xs text-neutral-500">
+              студия стретчинга в Кишинёве
+            </span>
+          </div>
 
-      {locations.length > 0 && (
-        <>
-          <h2 className="text-2xl font-semibold mb-4">1. Выберите локацию</h2>
-          <LocationSelect
-            locations={locations}
-            value={selectedLocationId}
-            onChange={setSelectedLocationId}
-          />
-        </>
-      )}
+          {/* Десктоп-меню */}
+          <nav className="hidden md:flex items-center gap-5">
+            {NAV_ITEMS.map((item) => (
+              <NavLink key={item.to} to={item.to} className={linkClasses}>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
 
-      <h2 className="text-2xl font-semibold mt-10 mb-4">2. Расписание</h2>
-      <ScheduleList
-        schedule={schedule}
-        programTypesById={programTypesById}
-      />
+          {/* Мобильный бургер */}
+          <button
+            type="button"
+            className="md:hidden inline-flex items-center gap-2 rounded-md border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:text-white hover:border-pink-500 hover:bg-neutral-900/60 transition-colors"
+            onClick={() => setMobileOpen((v) => !v)}
+          >
+            <span>Меню</span>
+            <span className="text-lg leading-none">
+              {mobileOpen ? '✕' : '☰'}
+            </span>
+          </button>
+        </div>
 
-      <h2 className="text-2xl font-semibold mt-10 mb-4">3. Абонементы</h2>
-      <MembershipList memberships={memberships} />
+        {/* Мобильное выпадающее меню */}
+        <nav
+          className={
+            (mobileOpen ? 'block' : 'hidden') +
+            ' md:hidden border-t border-neutral-800 bg-neutral-950/95'
+          }
+        >
+          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-2">
+            {NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={linkClasses}
+                onClick={() => setMobileOpen(false)}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      </header>
 
-      <h2 className="text-2xl font-semibold mt-10 mb-4">
-        4. Записаться на гостевой визит
-      </h2>
-      <LeadForm
-        locationId={selectedLocationId}
-        programTypes={programTypes}
-        onSubmit={handleCreateLead}
-      />
+      {/* MAIN */}
+      <main className="flex-1">
+        <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+          <Outlet />
+        </div>
+      </main>
 
-      {leadStatus && (
-        <p className="mt-4 text-blue-400 text-lg">{leadStatus}</p>
-      )}
+      {/* FOOTER */}
+      <footer className="border-t border-neutral-800 py-4 text-xs text-neutral-500">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-2">
+          <span>
+            Cohai Stretching © {new Date().getFullYear()}
+          </span>
+          <span className="text-neutral-600">
+            Бережная гибкость, здоровая спина и комфортное движение.
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/newbie" element={<NewbieGuidePage />} />
+        <Route path="/formats" element={<FormatsPage />} />
+        <Route path="/schedule" element={<SchedulePage />} />
+        <Route path="/prices" element={<PricesPage />} />
+        <Route path="/trainers" element={<TrainersPage />} />
+        <Route path="/contacts" element={<ContactsPage />} />
+      </Route>
+    </Routes>
+  );
+}

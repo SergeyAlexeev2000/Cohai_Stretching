@@ -1,33 +1,42 @@
 # app/services/schedule_service.py
 
+from __future__ import annotations
+
+from typing import List, Optional
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.repositories.class_session_repo import ClassSessionRepository
+from app.models.class_session import ClassSession
 
 
 class ScheduleService:
-    """
-    Сервис для работы с расписанием (ClassSession).
+    """Публичное расписание занятий."""
 
-    Сейчас минимальная версия: только то, что нужно для
-    публичного эндпоинта /schedule.
-    """
-
-    def __init__(self, db: Session):
+    def __init__(self, db: Session) -> None:
         self.db = db
-        self.repo = ClassSessionRepository(db)
 
-    def get_schedule_for_location(self, location_id: int):
+    def get_schedule_for_location(
+        self,
+        location_id: int,
+        program_type_id: Optional[int] = None,
+    ) -> List[ClassSession]:
         """
-        Вернуть список занятий для конкретной локации.
+        Вернуть занятия для заданной локации.
 
-        Используется в:
-            app.api.v1.public.get_schedule()
+        Если передан program_type_id — дополнительно фильтруем по типу программы.
+        В дальнейшем можно добавить:
+        - фильтрацию по дням недели
+        - только активные слоты и т.п.
         """
-        # Если в репозитории есть более подходящий метод — можно
-        # использовать его. Пока делаем типовую заглушку.
-        return self.repo.list_for_location(location_id)
-        # Если такого метода нет, можно временно сделать, например:
-        # return self.repo.list_all_for_location(location_id)
-        # или даже:
-        # return self.repo.list_all()
+        stmt = (
+            select(ClassSession)
+            .where(ClassSession.location_id == location_id)
+        )
+
+        if program_type_id is not None:
+            stmt = stmt.where(ClassSession.program_type_id == program_type_id)
+
+        stmt = stmt.order_by(ClassSession.weekday, ClassSession.start_time)
+
+        return list(self.db.scalars(stmt).all())

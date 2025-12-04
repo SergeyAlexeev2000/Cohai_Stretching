@@ -8,6 +8,7 @@ class ProgramTypeBase(BaseModel):
     """Базовые данные о типе программы (йога, стретчинг и т.п.)."""
     name: str
     description: Optional[str] = None
+    is_group: bool  # ← добавили это поле
 
     class Config:
         orm_mode = True

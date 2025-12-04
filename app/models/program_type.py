@@ -9,8 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
-    # только для type-checker, в рантайме не импортируется
     from app.models.class_session import ClassSession
+    from app.models.lead import Lead
 
 
 class ProgramType(Base):
@@ -20,16 +20,22 @@ class ProgramType(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # является ли программа групповой, просто пример поля
-    is_group: Mapped[bool] = mapped_column(Boolean, default=True)
+    # как в таблице v0
+    is_group: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # ONE ProgramType -> MANY ClassSession
-    # важно: back_populates совпадает с именем поля в ClassSession.program_type
-    class_sessions: Mapped[list["ClassSession"]] = relationship(
+    class_sessions: Mapped[List["ClassSession"]] = relationship(
         "ClassSession",
         back_populates="program_type",
         cascade="all, delete-orphan",
     )
 
+    # ONE ProgramType -> MANY Lead
+    leads: Mapped[List["Lead"]] = relationship(
+        "Lead",
+        back_populates="program_type",
+    )
+
 
 __all__ = ["ProgramType"]
+

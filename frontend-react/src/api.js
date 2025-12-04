@@ -1,39 +1,96 @@
-const API_BASE = 'http://localhost:8000/api/v1';
+// src/api.js
 
-export async function fetchLocations() {
-  const res = await fetch(`${API_BASE}/locations`);
-  if (!res.ok) throw new Error('Failed to load locations');
-  return res.json();
-}
+// Базовый URL бэкенда.
+// Ожидаем, что VITE_API_BASE_URL = 'http://localhost:8000' (БЕЗ /api/v1).
+// На проде можно будет подставить другой домен.
+const RAW_BASE =
+  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
-export async function fetchProgramTypes() {
-  const res = await fetch(`${API_BASE}/program-types`);
-  if (!res.ok) throw new Error('Failed to load program types');
-  return res.json();
-}
+// убираем возможный слеш в конце
+const BASE = RAW_BASE.replace(/\/+$/, '');
 
-export async function fetchSchedule(locationId) {
-  const res = await fetch(`${API_BASE}/schedule?location_id=${locationId}`);
-  if (!res.ok) throw new Error('Failed to load schedule');
-  return res.json();
-}
+// Все публичные ручки — под /public/...
+// Итого будет: http://localhost:8000/public/...
+const API_BASE = `${BASE}/public`;
 
-export async function fetchMemberships(locationId) {
-  const res = await fetch(`${API_BASE}/memberships?location_id=${locationId}`);
-  if (!res.ok) throw new Error('Failed to load memberships');
-  return res.json();
-}
-
-export async function createGuestVisit(payload) {
-  const res = await fetch(`${API_BASE}/leads/guest-visit`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+// Общий helper для запросов
+async function request(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to create lead: ${text}`);
+    let message;
+    try {
+      message = await res.text();
+    } catch {
+      message = res.statusText;
+    }
+    throw new Error(message || `HTTP ${res.status}`);
   }
+
   return res.json();
+}
+
+// ==== Публичные API-функции по плану ====
+// План: getLocations() → GET /public/locations
+//       getProgramTypes() → GET /public/program-types
+//       getMemberships(params) → GET /public/memberships
+//       getSchedule(params) → GET /public/schedule
+//       createLead(payload) → POST /public/leads
+
+// GET /public/locations
+export function getLocations() {
+  return request('/locations');
+}
+
+// GET /public/program-types
+export function getProgramTypes() {
+  return request('/program-types');
+}
+
+// GET /public/memberships[?query...]
+export function getMemberships(queryString = '') {
+  return request(`/memberships${queryString}`);
+}
+
+// GET /public/schedule[?query...]
+export function getSchedule(queryString = '') {
+  return request(`/schedule${queryString}`);
+}
+
+// POST /public/leads/guest-visit
+export function createLead(payload) {
+  // Пока у нас на бэке есть только guest-visit,
+  // поэтому универсальный createLead бьёт туда же.
+  return request('/leads/guest-visit', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// ==== ВРЕМЕННАЯ ОБРАТНАЯ СОВМЕСТИМОСТЬ ====
+// Чтобы старые компоненты (из старого App.jsx) не упали до полной миграции.
+
+export const fetchLocations = getLocations;
+export const fetchProgramTypes = getProgramTypes;
+
+export function fetchSchedule(locationId) {
+  // старый интерфейс: fetchSchedule(locationId)
+  const qs = locationId ? `?location_id=${locationId}` : '';
+  return getSchedule(qs);
+}
+
+export function fetchMemberships(locationId) {
+  const qs = locationId ? `?location_id=${locationId}` : '';
+  return getMemberships(qs);
+}
+
+export function createGuestVisit(payload) {
+  // старое имя → пока та же ручка
+  return createLead(payload);
 }

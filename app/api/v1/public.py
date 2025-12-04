@@ -7,16 +7,23 @@ from sqlalchemy.orm import Session
 
 
 from app.api.v1.deps import get_db
+from app.api.v1.deps_auth import get_current_user_optional
+
+from app.models.user import User
+
 from app.repositories.location_repo import LocationRepository
 from app.repositories.program_type_repo import ProgramTypeRepository
+
 from app.schemas.class_session import ClassSessionRead
 from app.schemas.lead import LeadCreateGuestVisit, LeadRead
 from app.schemas.location import LocationRead
 from app.schemas.membership import MembershipPlanRead
 from app.schemas.program_type import ProgramTypeRead
+
 from app.services.lead_service import LeadService
 from app.services.membership_service import MembershipService
 from app.services.schedule_service import ScheduleService
+
 from app.core.exceptions import AppError
 
 router = APIRouter(tags=["public"])
@@ -37,10 +44,17 @@ def list_program_types(db: Session = Depends(get_db)):
 @router.get("/schedule", response_model=list[ClassSessionRead])
 def get_schedule(
     location_id: int = Query(...),
+    program_type_id: Optional[int] = Query(
+        default=None,
+        description="Фильтрация по типу программы. Если не задано — вернуть все занятия локации.",
+    ),
     db: Session = Depends(get_db),
 ):
     service = ScheduleService(db)
-    return service.get_schedule_for_location(location_id)
+    return service.get_schedule_for_location(
+        location_id=location_id,
+        program_type_id=program_type_id,
+    )
 
 
 @router.get("/memberships", response_model=list[MembershipPlanRead])
@@ -93,8 +107,16 @@ def get_membership(
 def create_guest_visit(
     payload: LeadCreateGuestVisit,
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
-    service = LeadService(db)
-    return service.create_guest_visit(payload)
+    """
+    Публичное создание лида.
 
+    Если запрос приходит с токеном (авторизованный пользователь),
+    привязываем лид к этому пользователю (lead.user_id = current_user.id).
+    Если без токена — создаём лид без user_id (анонимный).
+    """
+    service = LeadService(db)
+    lead = service.create_guest_visit(payload=payload, user=current_user)
+    return lead
 
