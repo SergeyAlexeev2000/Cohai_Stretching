@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, date, time
 from typing import List, Optional
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.class_session import ClassSession
@@ -14,6 +13,7 @@ from app.schemas.class_session import (
     ClassSessionUpdate,
 )
 from app.core.exceptions import AppError
+from app.repositories.class_session_repo import ClassSessionRepository
 
 
 def _validate_time_range(start: time, end: time) -> None:
@@ -33,6 +33,7 @@ class ClassSessionService:
 
     def __init__(self, db: Session) -> None:
         self.db = db
+        self.repo = ClassSessionRepository(db)
 
     # --- базовые операции ---
 
@@ -49,25 +50,16 @@ class ClassSessionService:
 
         Фильтры все опциональные.
         """
-        stmt = select(ClassSession).order_by(
-            ClassSession.weekday,
-            ClassSession.start_time,
+        return self.repo.list_all(
+            location_id=location_id,
+            program_type_id=program_type_id,
+            weekday=weekday,
+            is_active=is_active,
         )
-
-        if location_id is not None:
-            stmt = stmt.where(ClassSession.location_id == location_id)
-        if program_type_id is not None:
-            stmt = stmt.where(ClassSession.program_type_id == program_type_id)
-        if weekday is not None:
-            stmt = stmt.where(ClassSession.weekday == weekday)
-        if is_active is not None:
-            stmt = stmt.where(ClassSession.is_active == is_active)
-
-        return list(self.db.scalars(stmt).all())
 
     def get_or_404(self, session_id: int) -> ClassSession:
         """Вернуть занятие или 404."""
-        obj = self.db.get(ClassSession, session_id)
+        obj = self.repo.get(session_id)
         if obj is None:
             raise AppError(
                 code="CLASS_SESSION_NOT_FOUND",
@@ -100,7 +92,7 @@ class ClassSessionService:
             capacity=payload.capacity,
             is_active=payload.is_active,
         )
-        self.db.add(obj)
+        self.repo.create(obj)
         self.db.commit()
         self.db.refresh(obj)
         return obj
@@ -137,5 +129,5 @@ class ClassSessionService:
     def delete(self, session_id: int) -> None:
         """Удалить занятие."""
         obj = self.get_or_404(session_id)
-        self.db.delete(obj)
+        self.repo.delete(obj)
         self.db.commit()

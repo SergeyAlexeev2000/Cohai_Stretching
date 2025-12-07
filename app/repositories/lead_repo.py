@@ -1,25 +1,62 @@
-from typing import List
+# app/repositories/lead_repo.py
+from __future__ import annotations
+
+from typing import List, Optional
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.lead import Lead
+from app.models.lead import Lead, LeadStatus
 
 
 class LeadRepository:
-    def __init__(self, db: Session):
+    """Низкоуровневая работа с таблицей leads."""
+
+    def __init__(self, db: Session) -> None:
         self.db = db
 
-    def create_guest_visit(self, data: dict) -> Lead:
-        lead = Lead(**data)
-        self.db.add(lead)
-        self.db.commit()
-        self.db.refresh(lead)
-        return lead
+    # --- базовые операции ---
+
+    def get(self, lead_id: int) -> Optional[Lead]:
+        return self.db.get(Lead, lead_id)
 
     def list_all(self) -> List[Lead]:
-        return self.db.query(Lead).all()
+        stmt = select(Lead).order_by(Lead.created_at.desc())
+        return list(self.db.scalars(stmt).all())
 
-    def mark_processed(self, lead_id: int) -> None:
-        lead = self.db.query(Lead).get(lead_id)
-        if lead:
-            lead.is_processed = True
-            self.db.commit()
+    def list_by_user(self, user_id: int) -> List[Lead]:
+        stmt = (
+            select(Lead)
+            .where(Lead.user_id == user_id)
+            .order_by(Lead.created_at.desc())
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def list_for_admin(
+        self,
+        *,
+        status: Optional[LeadStatus] = None,
+        trainer_id: Optional[int] = None,
+    ) -> List[Lead]:
+        stmt = select(Lead).order_by(Lead.created_at.desc())
+
+        if status is not None:
+            # в БД статус хранится как строка
+            stmt = stmt.where(Lead.status == status.value)
+
+        if trainer_id is not None:
+            stmt = stmt.where(Lead.trainer_id == trainer_id)
+
+        return list(self.db.scalars(stmt).all())
+
+    def create(self, lead: Lead) -> Lead:
+        """
+        Создаём объект, но здесь только add+flush.
+        Коммит делается на уровне сервиса.
+        """
+        self.db.add(lead)
+        self.db.flush()  # чтобы появился id, не коммитя транзакцию
+        return lead
+
+    def delete(self, lead: Lead) -> None:
+        self.db.delete(lead)
