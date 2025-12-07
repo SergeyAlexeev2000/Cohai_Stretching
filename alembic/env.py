@@ -27,6 +27,8 @@ from app.models import membership  # noqa: F401
 from app.models import trainer  # noqa: F401
 from app.models import class_session  # noqa: F401
 from app.models import lead  # noqa: F401
+from app.models import user  # noqa: F401
+from app.models import attendance  # noqa: F401
 
 # ===== B. Стандартная часть Alembic =====
 
@@ -63,6 +65,9 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            compare_type=True,              # следим за изменениями типов
+            compare_server_default=True,    # и дефолтов
+            render_as_batch=connection.dialect.name == "sqlite",
         )
 
         with context.begin_transaction():
