@@ -4,16 +4,15 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import AppError
 from app.models.membership import MembershipPlan
-
+from app.repositories.membership_repo import MembershipRepository
 from app.schemas.membership import (
     MembershipPlanCreate,
     MembershipPlanUpdate,
 )
-from app.core.exceptions import AppError
 
 
 class MembershipService:
@@ -21,6 +20,7 @@ class MembershipService:
 
     def __init__(self, db: Session) -> None:
         self.db = db
+        self.repo = MembershipRepository(db)
 
     def list_all(
         self,
@@ -34,19 +34,12 @@ class MembershipService:
         - only_active пока не используется (в схеме нет поля is_active),
           но параметр оставляем для будущего расширения.
         """
-        stmt = select(MembershipPlan)
-
-        if location_id is not None:
-            stmt = stmt.where(MembershipPlan.location_id == location_id)
-
-        stmt = stmt.order_by(MembershipPlan.id)
-        return list(self.db.scalars(stmt).all())
+        return self.repo.list_all(location_id=location_id, only_active=only_active)
 
     def get(self, membership_id: int) -> Optional[MembershipPlan]:
         """Вернуть один абонемент по id или None."""
-        stmt = select(MembershipPlan).where(MembershipPlan.id == membership_id)
-        return self.db.scalars(stmt).first()
-    
+        return self.repo.get(membership_id)
+
     # --- Вспомогательное: для админки ---
 
     def get_or_404(self, membership_id: int) -> MembershipPlan:
@@ -75,7 +68,9 @@ class MembershipService:
             price=payload.price,
             location_id=payload.location_id,
         )
-        self.db.add(membership)
+        # низкоуровневая часть — через репозиторий
+        self.repo.create(membership)
+        # граница транзакции — здесь
         self.db.commit()
         self.db.refresh(membership)
         return membership
@@ -97,6 +92,7 @@ class MembershipService:
         for field, value in data.items():
             setattr(membership, field, value)
 
+        # можно использовать repo.save(membership), если ты его добавил
         self.db.add(membership)
         self.db.commit()
         self.db.refresh(membership)
@@ -105,5 +101,5 @@ class MembershipService:
     def delete(self, membership_id: int) -> None:
         """Удалить тариф (жёстко)."""
         membership = self.get_or_404(membership_id)
-        self.db.delete(membership)
+        self.repo.delete(membership)
         self.db.commit()

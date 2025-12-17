@@ -130,3 +130,9 @@ def test_me_returns_current_user():
     assert me_data["id"] == user_id
     assert me_data["email"] == email
     assert me_data["role"] == "CLIENT"
+
+
+def test_me_requires_auth():
+    """Проверяем, что /auth/me без токена возвращает 401."""
+    resp_me = client.get("/api/v1/auth/me")
+    assert resp_me.status_code == 401, resp_me.text

@@ -77,6 +77,14 @@ class LeadUpdateAdmin(BaseModel):
     assigned_admin_id: int | None = None
 
 
+class LeadUpdateTrainer(LeadUpdateAdmin):
+    """
+    Обновление лида со стороны тренера.
+    Пока используем тот же набор полей, что и для LeadUpdateAdmin.
+    """
+    pass
+
+
 __all__ = [
     "LeadBase",
     "LeadCreateGuestVisit",

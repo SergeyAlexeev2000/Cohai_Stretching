@@ -1,7 +1,7 @@
 # app/repositories/lead_repo.py
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,16 +18,28 @@ class LeadRepository:
     # --- базовые операции ---
 
     def get(self, lead_id: int) -> Optional[Lead]:
+        """Вернуть лида по id или None, если не найден."""
         return self.db.get(Lead, lead_id)
 
     def list_all(self) -> List[Lead]:
+        """Все лиды, от новых к старым."""
         stmt = select(Lead).order_by(Lead.created_at.desc())
         return list(self.db.scalars(stmt).all())
 
     def list_by_user(self, user_id: int) -> List[Lead]:
+        """Лиды, созданные конкретным пользователем."""
         stmt = (
             select(Lead)
             .where(Lead.user_id == user_id)
+            .order_by(Lead.created_at.desc())
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def list_by_trainer(self, trainer_id: int) -> List[Lead]:
+        """Лиды, закреплённые за конкретным тренером (для тренерских экранов)."""
+        stmt = (
+            select(Lead)
+            .where(Lead.trainer_id == trainer_id)
             .order_by(Lead.created_at.desc())
         )
         return list(self.db.scalars(stmt).all())
@@ -38,6 +50,12 @@ class LeadRepository:
         status: Optional[LeadStatus] = None,
         trainer_id: Optional[int] = None,
     ) -> List[Lead]:
+        """
+        Фильтрация для админских списков.
+
+        Важно: здесь НЕТ логики ролей, только фильтры по полям.
+        Решение, кто имеет право видеть этот список, принимает сервис.
+        """
         stmt = select(Lead).order_by(Lead.created_at.desc())
 
         if status is not None:
@@ -59,4 +77,6 @@ class LeadRepository:
         return lead
 
     def delete(self, lead: Lead) -> None:
+        """Пометить лида на удаление в текущей транзакции."""
         self.db.delete(lead)
+        # НИКАКОГО commit здесь

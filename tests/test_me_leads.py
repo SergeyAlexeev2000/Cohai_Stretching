@@ -17,6 +17,11 @@ def _email() -> str:
     return f"me_{uuid.uuid4().hex[:8]}@example.com"
 
 
+def test_me_leads_requires_auth():
+    resp = client.get("/api/v1/me/leads")
+    assert resp.status_code == 401, resp.text
+
+
 def test_me_leads_returns_only_current_user_leads():
     password = "secret123"
 

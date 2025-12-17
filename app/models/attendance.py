@@ -85,13 +85,6 @@ class Attendance(Base):
         nullable=False,
     )
 
-    status: Mapped[str] = mapped_column(
-        String(length=20),
-        nullable=False,
-        default=AttendanceStatus.PLANNED.value,
-        server_default=AttendanceStatus.PLANNED.value,
-    )
-
     # --- relationships ---
 
     user: Mapped["User"] = relationship(

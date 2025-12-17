@@ -14,6 +14,11 @@ def _email() -> str:
     return f"profile_{uuid.uuid4().hex[:8]}@example.com"
 
 
+def test_get_profile_requires_auth():
+    resp = client.get("/api/v1/me/profile")
+    assert resp.status_code == 401, resp.text
+
+
 def test_get_profile_returns_current_user_data():
     password = "secret123"
     email = _email()

@@ -1,6 +1,7 @@
 // src/App.jsx
 import React, { useState } from 'react';
 import { Routes, Route, NavLink, Outlet } from 'react-router-dom';
+import RequireRole from "./components/auth/RequireRole.jsx";
 
 import HomePage from './pages/HomePage.jsx';
 import NewbieGuidePage from './pages/NewbieGuidePage.jsx';
@@ -10,6 +11,26 @@ import PricesPage from './pages/PricesPage.jsx';
 import TrainersPage from './pages/TrainersPage.jsx';
 import ContactsPage from './pages/ContactsPage.jsx';
 
+import ClientDashboardLayout from './pages/client/ClientDashboardLayout.jsx';
+import ClientDashboardHome from './pages/client/DashboardHome';
+import ClientSchedulePage from './pages/client/SchedulePage';
+import ClientClassesPage from './pages/client/ClassesPage';
+import ClientMembershipsPage from './pages/client/MembershipsPage';
+import ClientProfilePage from './pages/client/ProfilePage';
+import ClientLeadsPage from './pages/client/LeadsPage';
+import LoginPage from "./pages/LoginPage.jsx";
+
+import CabinetRedirect from "./pages/CabinetRedirect.jsx";
+
+// === новые импорты для админки ===
+import AdminDashboardLayout from "./pages/admin/AdminDashboardLayout.jsx";
+import DashboardHome from "./pages/admin/DashboardHome.jsx";
+import LeadsPage from "./pages/admin/LeadsPage.jsx";
+import LocationsPage from "./pages/admin/LocationsPage.jsx";
+import MembershipsPage from "./pages/admin/MembershipsPage.jsx";
+import ClassSessionsPage from "./pages/admin/ClassSessionsPage.jsx";
+
+
 const NAV_ITEMS = [
   { to: '/', label: 'Главная' },
   { to: '/newbie', label: 'Новичку' },
@@ -18,6 +39,7 @@ const NAV_ITEMS = [
   { to: '/prices', label: 'Цены' },
   { to: '/trainers', label: 'Тренеры' },
   { to: '/contacts', label: 'Контакты' },
+  { to: '/cabinet', label: 'Личный кабинет' },
 ];
 
 function AppLayout() {
@@ -124,7 +146,45 @@ export default function App() {
         <Route path="/prices" element={<PricesPage />} />
         <Route path="/trainers" element={<TrainersPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/login" element={<LoginPage />} />
       </Route>
+
+      <Route path="/cabinet" element={<CabinetRedirect />} />
+      {/* ========================= */}
+      {/* Личный кабинет клиента    */}
+      {/* ========================= */}
+      <Route
+        path="/client"
+        element={
+          <RequireRole allowedRoles={["CLIENT"]}>
+            <ClientDashboardLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<ClientDashboardHome />} />
+        <Route path="schedule" element={<ClientSchedulePage />} />
+        <Route path="classes" element={<ClientClassesPage />} />
+        <Route path="memberships" element={<ClientMembershipsPage />} />
+        <Route path="profile" element={<ClientProfilePage />} />
+        <Route path="leads" element={<ClientLeadsPage />} />
+      </Route>
+
+      {/* Личный кабинет администратора */}
+      <Route
+        path="/admin"
+        element={
+          <RequireRole allowedRoles={["ADMIN", "SUPERADMIN"]}>
+            <AdminDashboardLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<DashboardHome />} />
+        <Route path="leads" element={<LeadsPage />} />
+        <Route path="locations" element={<LocationsPage />} />
+        <Route path="memberships" element={<MembershipsPage />} />
+        <Route path="classes" element={<ClassSessionsPage />} />
+      </Route>
+
     </Routes>
   );
 }

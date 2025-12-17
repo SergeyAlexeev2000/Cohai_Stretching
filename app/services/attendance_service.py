@@ -129,12 +129,14 @@ class AttendanceService:
                 detail="ClassSession not found or inactive",
             )
 
+        # 1) Дата должна совпадать с weekday занятия
         if payload.class_date.weekday() != cs.weekday:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="class_date does not match class_session weekday",
             )
 
+        # 2) Нельзя записаться дважды на тот же класс/дату
         exists_stmt = select(Attendance.id).where(
             Attendance.user_id == user.id,
             Attendance.class_session_id == cs.id,
@@ -146,6 +148,7 @@ class AttendanceService:
                 detail="You are already booked for this class and date",
             )
 
+        # 3) Проверка capacity (считаем все, кроме CANCELED)
         count_stmt = select(func.count(Attendance.id)).where(
             Attendance.class_session_id == cs.id,
             Attendance.class_date == payload.class_date,
@@ -158,6 +161,7 @@ class AttendanceService:
                 detail="Class is full",
             )
 
+        # 4) Пока membership не трогаем — membership_id=None
         attendance = Attendance(
             user_id=user.id,
             class_session_id=cs.id,
@@ -202,12 +206,14 @@ class AttendanceService:
 
         attendance, session = row
 
+        # Нельзя отменить уже посещённое занятие
         if attendance.status == AttendanceStatus.ATTENDED.value:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot cancel already attended class",
             )
 
+        # Если ещё не CANCELED — ставим CANCELED (идемпотентность) 
         if attendance.status != AttendanceStatus.CANCELED.value:
             attendance.status = AttendanceStatus.CANCELED.value
             self.db.add(attendance)

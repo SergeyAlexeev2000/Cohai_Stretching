@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.main import app
 from app.db.session import SessionLocal
 from app.models.trainer import Trainer
+from tests.test_admin_leads import admin_headers   # ← ВАЖНО ДОБАВИТЬ
 
 client = TestClient(app, raise_server_exceptions=False)
 
@@ -60,7 +61,11 @@ def _create_class_session_via_admin(
         "is_active": True,
     }
 
-    resp = client.post("/api/v1/admin/class-sessions", json=payload)
+    resp = client.post(
+        "/api/v1/admin/class-sessions",
+        json=payload,
+        headers=admin_headers(),     # ← ДОБАВЛЕНО
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert "id" in data
@@ -70,7 +75,10 @@ def _create_class_session_via_admin(
 def test_admin_create_and_get_class_session():
     sess = _create_class_session_via_admin()
 
-    resp = client.get(f"/api/v1/admin/class-sessions/{sess['id']}")
+    resp = client.get(
+        f"/api/v1/admin/class-sessions/{sess['id']}",
+        headers=admin_headers(),     # ← ДОБАВЛЕНО
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["id"] == sess["id"]
@@ -82,8 +90,12 @@ def test_admin_create_and_get_class_session():
 def test_admin_list_class_sessions_contains_created():
     sess = _create_class_session_via_admin(weekday=2)
 
-    resp = client.get("/api/v1/admin/class-sessions")
+    resp = client.get(
+        "/api/v1/admin/class-sessions",
+        headers=admin_headers(),     # ← ДОБАВЛЕНО
+    )
     assert resp.status_code == 200
+
     data = resp.json()
     ids = [item["id"] for item in data]
     assert sess["id"] in ids
@@ -99,13 +111,12 @@ def test_admin_update_class_session_changes_time():
     resp_patch = client.patch(
         f"/api/v1/admin/class-sessions/{sess['id']}",
         json={"start_time": "19:00:00", "end_time": "20:00:00"},
+        headers=admin_headers(),      # ← ДОБАВЛЕНО
     )
     assert resp_patch.status_code == 200
     data = resp_patch.json()
     assert data["start_time"].startswith("19:00")
     assert data["end_time"].startswith("20:00")
-
-    # проверяем, что duration_minutes пересчитался
     assert data["duration_minutes"] == 60
 
 
@@ -113,11 +124,14 @@ def test_admin_delete_class_session_then_404_on_get():
     sess = _create_class_session_via_admin()
 
     resp_delete = client.delete(
-        f"/api/v1/admin/class-sessions/{sess['id']}"
+        f"/api/v1/admin/class-sessions/{sess['id']}",
+        headers=admin_headers(),      # ← ДОБАВЛЕНО
     )
     assert resp_delete.status_code == 204
 
     resp_get = client.get(
-        f"/api/v1/admin/class-sessions/{sess['id']}"
+        f"/api/v1/admin/class-sessions/{sess['id']}",
+        headers=admin_headers(),      # ← ДОБАВЛЕНО
     )
     assert resp_get.status_code == 404
+

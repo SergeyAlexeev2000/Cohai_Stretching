@@ -1,0 +1,61 @@
+.class-item {
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: #ffffff;
+  font-size: 0.9rem;
+}
+
+.class-item__main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.class-item__date {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.class-item__sub {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.class-item__footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.class-item__cancel-btn {
+  border-radius: 999px;
+  border: 1px solid #ef4444;
+  background: #ffffff;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.class-item__cancel-btn:hover:enabled {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.class-item__cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.class-item__note {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}

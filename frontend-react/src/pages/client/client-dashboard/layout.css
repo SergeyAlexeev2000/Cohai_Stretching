@@ -1,0 +1,116 @@
+.client-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background: #f3f4f6;
+  color: #111827;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* SIDEBAR */
+
+.client-dashboard__sidebar {
+  width: 240px;
+  background: #111827;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+}
+
+.client-dashboard__brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 24px;
+}
+
+.client-dashboard__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.client-dashboard__nav-link {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+  font-size: 0.95rem;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.client-dashboard__nav-link:hover {
+  background: #1f2937;
+  transform: translateX(1px);
+}
+
+.client-dashboard__nav-link--active {
+  background: #4b5563;
+}
+
+/* MAIN AREA */
+
+.client-dashboard__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.client-dashboard__header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
+.client-dashboard__title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.client-dashboard__content {
+  padding: 20px 24px;
+}
+
+/* универсальная карточка */
+
+.client-dashboard-card {
+  background: white;
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  margin-bottom: 16px;
+}
+
+.client-dashboard__header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.client-dashboard__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.client-dashboard__logout-btn {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.client-dashboard__logout-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}

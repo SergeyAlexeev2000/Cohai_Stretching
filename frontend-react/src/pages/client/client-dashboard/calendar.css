@@ -1,0 +1,64 @@
+.calendar-day {
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+
+.calendar-day__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.calendar-day__date {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.calendar-day__count {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.calendar-day__empty {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.calendar-class {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  margin-top: 4px;
+  font-size: 0.85rem;
+}
+
+.calendar-class__main {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.calendar-class__time {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.calendar-class__title {
+  margin-bottom: 2px;
+}
+
+.calendar-class__meta {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.calendar-class__tags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}

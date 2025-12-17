@@ -1,0 +1,70 @@
+.lead-item {
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+}
+
+.lead-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.lead-item__title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.lead-item__subtitle {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.lead-item__subtitle span {
+  color: #111827;
+}
+
+.lead-item__body {
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.lead-item__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lead-item__row span:first-child {
+  color: #6b7280;
+}
+
+.lead-item__row--muted span {
+  color: #9ca3af;
+}
+
+.lead-item__comment {
+  margin-top: 6px;
+  font-size: 0.84rem;
+}
+
+.lead-item__comment-label {
+  display: inline-block;
+  margin-right: 4px;
+  color: #6b7280;
+}
+
+.lead-item__footer {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.lead-item__id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}

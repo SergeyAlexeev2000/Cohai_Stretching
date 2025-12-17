@@ -77,7 +77,9 @@ Cohai_Stretching
 │   │   ├── lead_repo.py
 │   │   ├── location_repo.py
 │   │   ├── membership_repo.py
-│   │   └── program_type_repo.py
+│   │   ├── program_type_repo.py
+│   │   ├── user_membership_repo.py
+│   │   └── user_repo.py
 │   ├── schemas
 │   │   ├── __init__.py
 │   │   ├── attendance.py
@@ -92,11 +94,14 @@ Cohai_Stretching
 │   ├── services
 │   │   ├── __init__.py
 │   │   ├── attendance_service.py
+│   │   ├── auth_service.py
 │   │   ├── class_session_service.py
 │   │   ├── lead_service.py
 │   │   ├── location_service.py
 │   │   ├── membership_service.py
-│   │   └── schedule_service.py
+│   │   ├── schedule_service.py
+│   │   ├── user_membership_service.py
+│   │   └── user_service.py
 │   ├── tools
 │   │   ├── logs
 │   │   ├── bootstrap_db.py
@@ -121,9 +126,14 @@ Cohai_Stretching
 │   │   ├── images
 │   │   └── vite.svg
 │   ├── src
+│   │   ├── api
+│   │   │   └── adminRequest.js
 │   │   ├── assets
 │   │   │   └── react.svg
 │   │   ├── components
+│   │   │   ├── auth
+│   │   │   │   ├── RequireAuth.jsx
+│   │   │   │   └── RequireRole.jsx
 │   │   │   ├── domain
 │   │   │   │   ├── LeadForm.jsx
 │   │   │   │   ├── LocationSelect.jsx
@@ -135,10 +145,36 @@ Cohai_Stretching
 │   │   │   │   └── Layout.jsx
 │   │   │   └── ui
 │   │   │       └── Card.jsx
+│   │   ├── context
+│   │   │   └── AuthContext.jsx
 │   │   ├── pages
+│   │   │   ├── admin
+│   │   │   │   ├── AdminDashboardLayout.jsx
+│   │   │   │   ├── ClassSessionsPage.jsx
+│   │   │   │   ├── DashboardHome.jsx
+│   │   │   │   ├── LeadsPage.jsx
+│   │   │   │   ├── LocationsPage.jsx
+│   │   │   │   └── MembershipsPage.jsx
+│   │   │   ├── client
+│   │   │   │   ├── client-dashboard
+│   │   │   │   │   ├── calendar.css
+│   │   │   │   │   ├── classes.css
+│   │   │   │   │   ├── common.css
+│   │   │   │   │   ├── layout.css
+│   │   │   │   │   ├── leads.css
+│   │   │   │   │   └── memberships.css
+│   │   │   │   ├── ClassesPage.jsx
+│   │   │   │   ├── ClientDashboardLayout.jsx
+│   │   │   │   ├── DashboardHome.jsx
+│   │   │   │   ├── LeadsPage.jsx
+│   │   │   │   ├── MembershipsPage.jsx
+│   │   │   │   ├── ProfilePage.jsx
+│   │   │   │   └── SchedulePage.jsx
+│   │   │   ├── CabinetRedirect.jsx
 │   │   │   ├── ContactsPage.jsx
 │   │   │   ├── FormatsPage.jsx
 │   │   │   ├── HomePage.jsx
+│   │   │   ├── LoginPage.jsx
 │   │   │   ├── NewbieGuidePage.jsx
 │   │   │   ├── PricesPage.jsx
 │   │   │   ├── SchedulePage.jsx
@@ -177,15 +213,21 @@ Cohai_Stretching
 │   ├── test_public_program_types.py
 │   └── test_public_schedule.py
 ├── alembic.ini
+├── backend_locations_api_v1.txt
 ├── cohai_backend_plan.md
 ├── cohai_site_master_plan.md
 ├── cohai_stretching.db
+├── collect_files.py
 ├── dump_project.py
 ├── dump_tree.py
+├── frontend_admin_pages_v1.txt
 ├── plan_backend_refactor.md
 ├── plan_frontend_refactor.md
 ├── project_architecture.md
-├── project_dump.txt
 ├── project_tree.md
-└── requirements.txt
+├── requirements.txt
+├── search_in_project.py
+├── snapshot_admin_lk_infra.txt
+├── snapshot_admin_lk_plan.txt
+└── snapshot_admin_lk_schemas_services.txt
 ```

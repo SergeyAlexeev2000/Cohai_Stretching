@@ -1,0 +1,1416 @@
+
+
+# ===== FILE: app\models\membership.py =====
+
+# app/models/membership.py
+from __future__ import annotations
+
+from datetime import date, datetime
+from enum import Enum
+from typing import Optional, List, TYPE_CHECKING
+
+from sqlalchemy import (
+    String,
+    Integer,
+    ForeignKey,
+    Date,
+    DateTime,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
+
+from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.location import Location
+    from app.models.class_session import ClassSession
+    from app.models.user import User
+
+
+# ---------- Тариф (тип абонемента) ----------
+
+
+class MembershipPlan(Base):
+    __tablename__ = "membership_plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    price: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # как в таблице v0
+    location_id: Mapped[int] = mapped_column(
+        ForeignKey("locations.id"),
+        nullable=False,
+    )
+
+    location: Mapped["Location"] = relationship(
+        "Location",
+        back_populates="membership_plans",
+    )
+
+    # ONE MembershipPlan -> MANY ClassSession
+    class_sessions: Mapped[List["ClassSession"]] = relationship(
+        "ClassSession",
+        back_populates="membership_plan",
+    )
+
+    # ONE MembershipPlan -> MANY Membership (конкретные абонементы пользователей)
+    memberships: Mapped[List["Membership"]] = relationship(
+        "Membership",
+        back_populates="plan",
+    )
+
+
+# ---------- Конкретный абонемент пользователя ----------
+
+
+class MembershipStatus(str, Enum):
+    """Статус конкретного абонемента пользователя."""
+
+    ACTIVE = "ACTIVE"      # действует, можно ходить
+    EXPIRED = "EXPIRED"    # истёк по сроку
+    FROZEN = "FROZEN"      # заморожен (на будущее, если захотим)
+    CANCELED = "CANCELED"  # отменён / аннулирован
+
+
+class Membership(Base):
+    """
+    Конкретный абонемент пользователя, привязанный к плану (MembershipPlan).
+
+    Примеры:
+    - "8 занятий / месяц в Локации X, с 1 по 30 число" (visits_total=8)
+    - "Безлимит на 1 месяц" (visits_total=None)
+    """
+
+    __tablename__ = "memberships"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # Кому принадлежит абонемент
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="memberships")
+
+    # На каком плане основан
+    membership_plan_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("membership_plans.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    plan: Mapped["MembershipPlan"] = relationship("MembershipPlan", back_populates="memberships")
+
+    # Период действия абонемента
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # Посещения
+    visits_total: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,         # None = "безлимит" (по времени)
+    )
+    visits_used: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    # Текущий статус
+    status: Mapped[str] = mapped_column(
+        String(length=20),
+        nullable=False,
+        default=MembershipStatus.ACTIVE.value,
+        server_default=MembershipStatus.ACTIVE.value,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+__all__ = ["MembershipPlan", "Membership", "MembershipStatus"]
+
+
+
+# ===== FILE: app\models\user.py =====
+
+# app/models/user.py
+from __future__ import annotations
+
+from datetime import datetime
+from enum import Enum
+from typing import Optional, TYPE_CHECKING, List
+
+from sqlalchemy import Boolean, DateTime, Integer, String, Enum as SqlEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+
+if TYPE_CHECKING:
+    # только для type hints, НЕ выполняется в рантайме
+    from app.models.membership import Membership
+    from app.models.trainer import Trainer
+    from app.models.lead import Lead
+
+class UserRole(str, Enum):
+    SUPERADMIN = "SUPERADMIN"
+    ADMIN = "ADMIN"
+    TRAINER = "TRAINER"
+    CLIENT = "CLIENT"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    full_name: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    password_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    role: Mapped[UserRole] = mapped_column(
+        SqlEnum(UserRole, name="user_role"),
+        nullable=False,
+        default=UserRole.CLIENT,
+    )
+    
+    # лиды, где этот пользователь — клиент
+    leads: Mapped[list["Lead"]] = relationship(
+        "Lead",
+        back_populates="user",
+        foreign_keys="Lead.user_id",          # ВАЖНО
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    memberships: Mapped[list["Membership"]] = relationship(
+        "Membership",
+        back_populates="user",
+    )
+    
+    trainer_profile: Mapped["Trainer | None"] = relationship(
+        "Trainer",
+        back_populates="user",
+        uselist=False,
+    )
+
+    # лиды, за которые этот пользователь отвечает как админ
+    admin_leads_assigned: Mapped[list["Lead"]] = relationship(
+        "Lead",
+        back_populates="assigned_admin",
+        foreign_keys="Lead.assigned_admin_id",   # ВАЖНО
+    )
+
+    def __repr__(self) -> str:
+        return f"<User id={self.id} email={self.email!r} role={self.role}>"
+
+__all__ = ["User", "UserRole"]
+
+
+
+# ===== FILE: app\db\base.py =====
+
+# app/db/base.py
+from sqlalchemy.orm import DeclarativeBase
+
+
+class Base(DeclarativeBase):
+    """Базовый класс для всех ORM-моделей."""
+    pass
+
+
+
+# ===== FILE: alembic\env.py =====
+
+from __future__ import annotations
+
+from logging.config import fileConfig
+from pathlib import Path
+import sys
+
+from alembic import context
+from sqlalchemy import pool, engine_from_config
+
+# ===== A. Настройка sys.path, чтобы работал import app.* =====
+
+THIS_FILE = Path(__file__).resolve()
+PROJECT_ROOT = THIS_FILE.parents[1]  # .../alembic/env.py -> корень проекта
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+# Теперь можно импортировать наше приложение
+from app.db.base import Base
+from app.db.session import engine
+
+# Импортируем все модули с моделями, чтобы они зарегистрировались в Base.metadata
+from app.models import location  # noqa: F401
+from app.models import location_area  # noqa: F401
+from app.models import program_type  # noqa: F401
+from app.models import membership  # noqa: F401
+from app.models import trainer  # noqa: F401
+from app.models import class_session  # noqa: F401
+from app.models import lead  # noqa: F401
+from app.models import user  # noqa: F401
+from app.models import attendance  # noqa: F401
+
+# ===== B. Стандартная часть Alembic =====
+
+config = context.config
+
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# Очень важно: сюда кладём metadata всех моделей
+target_metadata = Base.metadata
+
+
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode."""
+    # Используем тот же URL, что и у нашего engine
+    url = str(engine.url)
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode."""
+    # Используем именно наш engine из app.db.session
+    connectable = engine
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,              # следим за изменениями типов
+            compare_server_default=True,    # и дефолтов
+            render_as_batch=connection.dialect.name == "sqlite",
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+
+
+# ===== FILE: app\api\v1\admin\__init__.py =====
+
+# app/api/v1/admin/__init__.py
+from fastapi import APIRouter
+
+router = APIRouter()
+
+# Импортируем подмодули, чтобы они зарегистрировали свои роуты
+from . import admin_locations  # noqa: F401
+from . import admin_memberships  # noqa: F401
+from . import admin_leads  # noqa: F401
+from . import admin_class_sessions  # noqa: F401
+
+# Подключаем их роутеры к общему router
+router.include_router(admin_locations.router)
+router.include_router(admin_memberships.router)
+router.include_router(admin_leads.router)
+router.include_router(admin_class_sessions.router)
+
+
+
+# ===== FILE: app\api\v1\admin\admin_class_sessions.py =====
+
+# app/api/v1/admin/admin_class_sessions.py
+
+from __future__ import annotations
+
+from typing import Optional, List
+
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
+
+from app.api.v1.deps import get_db
+from app.api.v1.deps_auth import require_role
+from app.models.user import UserRole
+
+from app.schemas.class_session import (
+    ClassSessionRead,
+    ClassSessionCreate,
+    ClassSessionUpdate,
+)
+from app.services.class_session_service import ClassSessionService
+
+
+# ---------------------------------------------------------------------------
+#   ROUTER — доступ ADMIN и SUPERADMIN
+# ---------------------------------------------------------------------------
+
+router = APIRouter(
+    prefix="/admin/class-sessions",
+    tags=["admin_class_sessions"],
+    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPERADMIN))],
+)
+
+
+# ---------------------------------------------------------------------------
+#   GET /admin/class-sessions — список с фильтрами
+# ---------------------------------------------------------------------------
+
+@router.get("", response_model=list[ClassSessionRead])
+def list_class_sessions(
+    location_id: Optional[int] = Query(default=None),
+    trainer_id: Optional[int] = Query(default=None),
+    program_type_id: Optional[int] = Query(default=None),
+    include_inactive: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    """
+    Список занятий с фильтрами (админская версия).
+    """
+    service = ClassSessionService(db)
+    return service.list_sessions_admin(
+        location_id=location_id,
+        trainer_id=trainer_id,
+        program_type_id=program_type_id,
+        include_inactive=include_inactive,
+    )
+
+
+# ---------------------------------------------------------------------------
+#   GET /admin/class-sessions/{session_id}
+# ---------------------------------------------------------------------------
+
+@router.get("/{session_id}", response_model=ClassSessionRead)
+def get_class_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+):
+    service = ClassSessionService(db)
+    return service.get_session(session_id)
+
+
+# ---------------------------------------------------------------------------
+#   POST /admin/class-sessions — создать сессию
+# ---------------------------------------------------------------------------
+
+@router.post("", response_model=ClassSessionRead, status_code=status.HTTP_201_CREATED)
+def create_class_session(
+    payload: ClassSessionCreate,
+    db: Session = Depends(get_db),
+):
+    service = ClassSessionService(db)
+    return service.create_session(payload)
+
+
+# ---------------------------------------------------------------------------
+#   PATCH /admin/class-sessions/{session_id} — обновить занятие
+# ---------------------------------------------------------------------------
+
+@router.patch("/{session_id}", response_model=ClassSessionRead)
+def update_class_session(
+    session_id: int,
+    payload: ClassSessionUpdate,
+    db: Session = Depends(get_db),
+):
+    service = ClassSessionService(db)
+    return service.update_session(session_id, payload)
+
+# ---------------------------------------------------------------------------
+#   POST /admin/class-sessions/{session_id}/cancel — отменить занятие
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{session_id}/cancel",
+    response_model=ClassSessionRead,
+    status_code=status.HTTP_200_OK,
+)
+def cancel_class_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Отменить занятие — пометить is_active = False (идемпотентно).
+    Видно только ADMIN и SUPERADMIN (задаётся в dependencies у router).
+    """
+    service = ClassSessionService(db)
+    return service.cancel_session(session_id)
+
+# ---------------------------------------------------------------------------
+#   DELETE /admin/class-sessions/{session_id}
+# ---------------------------------------------------------------------------
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_class_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+):
+    service = ClassSessionService(db)
+    service.delete_session(session_id)
+    return None
+
+
+
+# ===== FILE: app\api\v1\admin\admin_leads.py =====
+
+# app/api/v1/admin/admin_leads.py
+
+from __future__ import annotations
+
+from typing import Optional, List
+
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
+
+from app.api.v1.deps import get_db
+from app.api.v1.deps_auth import require_role
+from app.models.user import UserRole
+
+from app.models.lead import LeadStatus
+from app.schemas.lead import LeadRead, LeadUpdateAdmin
+from app.services.lead_service import LeadService
+
+
+# ---------------------------------------------------------------------------
+#   ROUTER — доступ только ADMIN и SUPERADMIN
+# ---------------------------------------------------------------------------
+
+router = APIRouter(
+    prefix="/admin/leads",
+    tags=["admin_leads"],
+    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPERADMIN))],
+)
+
+
+# ---------------------------------------------------------------------------
+#   GET /admin/leads/by-status — фильтр лидов администратора
+# ---------------------------------------------------------------------------
+
+@router.get("/by-status", response_model=list[LeadRead])
+def admin_list_leads(
+    status: LeadStatus | None = Query(default=None),
+    trainer_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """
+    Список лидов с фильтрами:
+    - по статусу
+    - по тренеру
+    """
+    service = LeadService(db)
+    leads = service.list_leads_for_admin(status=status, trainer_id=trainer_id)
+    return leads
+
+
+# ---------------------------------------------------------------------------
+#   PATCH /admin/leads/{lead_id} — обновление от администратора
+# ---------------------------------------------------------------------------
+
+@router.patch("/{lead_id}", response_model=LeadRead)
+def admin_update_lead(
+    lead_id: int,
+    payload: LeadUpdateAdmin,
+    db: Session = Depends(get_db),
+):
+    service = LeadService(db)
+    lead = service.update_lead_admin(lead_id, payload)
+    return lead
+
+
+# ---------------------------------------------------------------------------
+#   DELETE /admin/leads/{lead_id} — удалить лид
+# ---------------------------------------------------------------------------
+
+@router.delete("/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+):
+    service = LeadService(db)
+    service.delete_lead(lead_id)
+    return None
+
+
+# ---------------------------------------------------------------------------
+#   GET /admin/leads — общий список лидов
+# ---------------------------------------------------------------------------
+
+@router.get("", response_model=list[LeadRead])
+def list_leads(
+    is_processed: Optional[bool] = Query(
+        default=None,
+        description="Фильтр по обработанности лида",
+    ),
+    location_id: Optional[int] = Query(
+        default=None,
+        description="Фильтр по локации",
+    ),
+    program_type_id: Optional[int] = Query(
+        default=None,
+        description="Фильтр по типу программы",
+    ),
+    q: Optional[str] = Query(
+        default=None,
+        description="Поиск по имени или телефону (подстрока)",
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Главный админ-список лидов.
+    """
+    service = LeadService(db)
+    return service.list_leads(
+        is_processed=is_processed,
+        location_id=location_id,
+        program_type_id=program_type_id,
+        query=q,
+    )
+
+
+# ---------------------------------------------------------------------------
+#   GET /admin/leads/{lead_id} — получить лид
+# ---------------------------------------------------------------------------
+
+@router.get("/{lead_id}", response_model=LeadRead)
+def get_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Получить лид по ID.
+    """
+    service = LeadService(db)
+    return service.get_lead(lead_id)
+
+
+# ---------------------------------------------------------------------------
+#   PATCH /admin/leads/{lead_id}/process — отметить обработанным
+# ---------------------------------------------------------------------------
+
+@router.patch("/{lead_id}/process", response_model=LeadRead)
+def process_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Помечает лид как обработанный.
+    Идемпотентно.
+    """
+    service = LeadService(db)
+    return service.mark_processed(lead_id)
+
+
+
+# ===== FILE: app\api\v1\admin\admin_locations.py =====
+
+# app/api/v1/admin/admin_locations.py
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+
+from app.api.v1.deps import get_db
+from app.api.v1.deps_auth import require_role
+from app.models.user import UserRole
+
+from app.schemas.location import (
+    LocationRead,
+    LocationCreate,
+    LocationUpdate,
+)
+from app.services.location_service import LocationService
+
+
+router = APIRouter(
+    prefix="/admin/locations",
+    tags=["admin_locations"],
+    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPERADMIN))],
+)
+
+
+@router.get("", response_model=list[LocationRead])
+def list_locations(
+    db: Session = Depends(get_db),
+):
+    """
+    Получить список всех локаций (админский).
+    """
+    service = LocationService(db)
+    # БЫЛО: service.list_locations()
+    return service.list_all()
+
+
+@router.get("/{location_id}", response_model=LocationRead)
+def get_location(
+    location_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Получить одну локацию по ID.
+    """
+    service = LocationService(db)
+    # БЫЛО: service.get_location(location_id)
+    return service.get_or_404(location_id)
+
+
+@router.post(
+    "",
+    response_model=LocationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_location(
+    payload: LocationCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Создать новую локацию.
+    """
+    service = LocationService(db)
+    # БЫЛО: service.create_location(payload)
+    return service.create(payload)
+
+
+@router.patch("/{location_id}", response_model=LocationRead)
+def update_location(
+    location_id: int,
+    payload: LocationUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Обновить поля существующей локации.
+    """
+    service = LocationService(db)
+    # БЫЛО: service.update_location(location_id, payload)
+    return service.update(location_id, payload)
+
+
+@router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_location(
+    location_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Удалить локацию.
+    """
+    service = LocationService(db)
+    # БЫЛО: service.delete_location(location_id)
+    service.delete(location_id)
+    return None
+
+
+
+# ===== FILE: app\api\v1\admin\admin_memberships.py =====
+
+# app/api/v1/admin/admin_memberships.py
+
+from __future__ import annotations
+
+from typing import List
+
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+
+from app.api.v1.deps import get_db
+from app.api.v1.deps_auth import require_role
+from app.models.user import UserRole
+
+from app.schemas.membership import (
+    MembershipPlanRead,
+    MembershipPlanCreate,
+    MembershipPlanUpdate,
+)
+from app.services.membership_service import MembershipService
+
+
+router = APIRouter(
+    prefix="/admin/memberships",
+    tags=["admin_memberships"],
+    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPERADMIN))],
+)
+
+
+@router.get("", response_model=list[MembershipPlanRead])
+def list_memberships(
+    db: Session = Depends(get_db),
+):
+    """
+    Получить список всех тарифов (абонементных планов).
+    """
+    service = MembershipService(db)
+    return service.list_all()
+
+
+@router.get("/{membership_id}", response_model=MembershipPlanRead)
+def get_membership(
+    membership_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Получить тариф по ID.
+    """
+    service = MembershipService(db)
+    return service.get_or_404(membership_id)
+
+
+@router.post(
+    "",
+    response_model=MembershipPlanRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_membership(
+    payload: MembershipPlanCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Создать новый тариф.
+    """
+    service = MembershipService(db)
+    return service.create(payload)
+
+
+@router.patch("/{membership_id}", response_model=MembershipPlanRead)
+def update_membership(
+    membership_id: int,
+    payload: MembershipPlanUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Обновить существующий тариф.
+    """
+    service = MembershipService(db)
+    return service.update(membership_id, payload)
+
+
+@router.delete("/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_membership(
+    membership_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Удалить тариф.
+    """
+    service = MembershipService(db)
+    service.delete(membership_id)
+    return None
+
+
+
+# ===== FILE: app\schemas\__init__.py =====
+
+from .location import LocationRead
+from .program_type import ProgramTypeRead
+from .trainer import TrainerRead
+from .membership import MembershipPlanRead
+from .class_session import ClassSessionRead
+from .lead import LeadCreateGuestVisit, LeadRead
+
+__all__ = [
+    "LocationRead",
+    "ProgramTypeRead",
+    "TrainerRead",
+    "MembershipPlanRead",
+    "ClassSessionRead",
+    "LeadCreateGuestVisit",
+    "LeadRead",
+]
+
+
+
+# ===== FILE: app\schemas\attendance.py =====
+
+# app/schemas/attendance.py
+from __future__ import annotations
+
+from datetime import date, time
+
+from pydantic import BaseModel
+
+
+class MeClassItem(BaseModel):
+    """
+    Один класс в ЛК пользователя: запись на конкретное занятие.
+    """
+
+    attendance_id: int
+    class_session_id: int
+
+    class_date: date
+    start_time: time
+    end_time: time
+
+    status: str
+
+
+class MeClassesResponse(BaseModel):
+    """
+    Ответ для /api/v1/me/classes:
+    - upcoming: будущие занятия, на которые пользователь записан
+    - history: прошедшие / посещённые / пропущенные / отменённые
+    """
+
+    upcoming: list[MeClassItem]
+    history: list[MeClassItem]
+
+
+class ClassBookingRequest(BaseModel):
+    """
+    Тело для POST /api/v1/me/classes/book.
+    """
+    class_session_id: int
+    class_date: date
+
+
+class ClassCancelRequest(BaseModel):
+    """
+    Тело для POST /api/v1/me/classes/cancel.
+    """
+    attendance_id: int
+
+
+# ===== FILE: app\schemas\calendar.py =====
+
+# app/schemas/calendar.py
+from __future__ import annotations
+
+from datetime import date, time
+
+from pydantic import BaseModel
+
+
+class MeCalendarClassItem(BaseModel):
+    """
+    Одна конкретная запись пользователя на занятие для календаря.
+    """
+
+    attendance_id: int
+    class_session_id: int
+
+    class_date: date
+    start_time: time
+    end_time: time
+
+    status: str
+
+
+class MeCalendarDay(BaseModel):
+    """
+    День календаря: дата + список занятий в этот день.
+    """
+
+    date: date
+    classes: list[MeCalendarClassItem]
+
+
+class MeCalendarResponse(BaseModel):
+    """
+    Ответ для /api/v1/me/calendar:
+    - start_date, end_date: границы диапазона
+    - days: список дней, в которых у пользователя есть занятия
+    """
+
+    start_date: date
+    end_date: date
+    days: list[MeCalendarDay]
+
+
+
+# ===== FILE: app\schemas\class_session.py =====
+
+# app/schemas/class_session.py
+from __future__ import annotations
+
+from datetime import time, datetime, date
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, computed_field
+
+
+# Базовая схема – общие поля для ClassSession
+class ClassSessionBase(BaseModel):
+    # ВАЖНО: именно time, как в модели SQLAlchemy
+    weekday: int                # 0 = Monday ... 6 = Sunday
+    start_time: time            # время начала
+    end_time: time              # время окончания
+
+    location_id: int            # FK → Location
+    program_type_id: int        # FK → ProgramType
+    trainer_id: Optional[int] = None          # FK → Trainer
+    membership_plan_id: Optional[int] = None  # FK → MembershipPlan
+
+    capacity: int
+    is_active: bool = True
+
+    # Pydantic v2: включаем работу с ORM-моделями
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Для создания (POST и т.п.)
+class ClassSessionCreate(ClassSessionBase):
+    pass
+
+
+# Для чтения из БД / ответа API
+class ClassSessionRead(ClassSessionBase):
+    id: int
+
+    # duration_minutes вычисляем на лету, а не ждём из ORM
+    @computed_field
+    @property
+    def duration_minutes(self) -> int:
+        """Длительность занятия в минутах."""
+        dt_start = datetime.combine(date.today(), self.start_time)
+        dt_end = datetime.combine(date.today(), self.end_time)
+        return int((dt_end - dt_start).total_seconds() // 60)
+
+
+class ClassSessionUpdate(BaseModel):
+    """
+    Для частичного обновления (PATCH).
+
+    Все поля опциональны: обновляем только то, что пришло.
+    """
+    weekday: Optional[int] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+
+    location_id: Optional[int] = None
+    program_type_id: Optional[int] = None
+    trainer_id: Optional[int] = None
+    membership_plan_id: Optional[int] = None
+
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+__all__ = [
+    "ClassSessionBase",
+    "ClassSessionCreate",
+    "ClassSessionRead",
+    "ClassSessionUpdate",
+]
+
+
+
+# ===== FILE: app\schemas\lead.py =====
+
+# app/schemas/lead.py
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, EmailStr, field_validator
+
+from app.models.lead import LeadStatus
+
+# Базовая часть данных лида
+class LeadBase(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+    # Вариант 2: цельное имя (для тестов и упрощённых форм)
+    full_name: Optional[str] = None
+
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+
+    location_id: int
+    program_type_id: Optional[int] = None
+
+    notes: Optional[str] = None
+    message: str | None = None
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def ensure_full_name(cls, v, values):
+        """
+        Если full_name не передан, но есть first_name / last_name,
+        собираем full_name автоматически.
+
+        Если ничего нет — кидаем ошибку валидации.
+        """
+        if v:
+            return v
+
+        first = values.get("first_name")
+        last = values.get("last_name")
+
+        if first or last:
+            return f"{first or ''} {last or ''}".strip()
+
+        raise ValueError(
+            "Either full_name or first_name/last_name must be provided"
+        )
+
+# То, что приходит с формы "гостевого визита"
+class LeadCreateGuestVisit(LeadBase):
+    """
+    Схема для создания лида гостевого визита.
+    Пока не добавляем ничего сверх LeadBase – при необходимости
+    можно будет расширить (например, желаемая дата визита и т.п.).
+    """
+    location_id: int | None = None
+
+
+# То, что отдаём наружу (в ответах API)
+class LeadRead(LeadBase):
+    id: int
+    created_at: datetime
+    is_processed: bool
+
+    status: LeadStatus
+    assigned_trainer_id: int | None = None
+    assigned_admin_id: int | None = None
+
+    class Config:
+        orm_mode = True  # чтобы Pydantic понимал ORM-объекты SQLAlchemy
+
+
+#И схема для обновления админом/тренером:
+class LeadUpdateAdmin(BaseModel):
+    status: LeadStatus | None = None
+    assigned_trainer_id: int | None = None
+    assigned_admin_id: int | None = None
+
+
+class LeadUpdateTrainer(LeadUpdateAdmin):
+    """
+    Обновление лида со стороны тренера.
+    Пока используем тот же набор полей, что и для LeadUpdateAdmin.
+    """
+    pass
+
+
+__all__ = [
+    "LeadBase",
+    "LeadCreateGuestVisit",
+    "LeadRead",
+]
+
+
+
+# ===== FILE: app\schemas\location.py =====
+
+# app/schemas/location.py
+
+from typing import Optional
+
+from pydantic import BaseModel
+
+
+class LocationBase(BaseModel):
+    """Базовая схема локации (общие поля)."""
+    name: str
+    address: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+class LocationRead(LocationBase):
+    """То, что мы отдаем наружу (в API)."""
+    id: int
+
+
+class LocationCreate(LocationBase):
+    """Если потом понадобится создавать локации через API."""
+    pass
+
+
+class LocationUpdate(BaseModel):
+    """Схема для обновления (вдруг пригодится)."""
+    name: Optional[str] = None
+    address: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+__all__ = [
+    "LocationBase",
+    "LocationRead",
+    "LocationCreate",
+    "LocationUpdate",
+]
+
+
+
+# ===== FILE: app\schemas\membership.py =====
+
+# app/schemas/membership.py
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
+class MembershipPlanBase(BaseModel):
+    """Базовые данные о тарифе/абонементе."""
+    name: str
+    description: Optional[str] = None
+    price: float
+    location_id: int      # FK -> locations.id
+    # duration_days: int
+    # is_active: bool = True
+    # аналог orm_mode=True в pydantic v2
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MembershipPlanRead(MembershipPlanBase):
+    """То, что отдаём наружу в API."""
+    id: int
+    
+    class Config:
+        orm_mode = True
+
+
+class MembershipPlanCreate(MembershipPlanBase):
+    """Если когда-нибудь понадобится создавать тарифы через API."""
+    pass
+
+
+class MembershipPlanUpdate(BaseModel):
+    """Схема для обновления тарифа (необязательные поля)."""
+    name: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+class MembershipRead(BaseModel):
+    """
+    Конкретный абонемент пользователя (Membership) для отдачи в API.
+    """
+
+    id: int
+    membership_plan_id: int
+
+    start_date: date
+    end_date: date
+
+    visits_total: int | None = None
+    visits_used: int
+
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MembershipListResponse(BaseModel):
+    """
+    Ответ для /api/v1/me/memberships:
+    - active: активные абонементы
+    - history: истёкшие / отменённые / замороженные
+    """
+
+    active: list[MembershipRead]
+    history: list[MembershipRead]
+
+
+__all__ = [
+    "MembershipPlanBase",
+    "MembershipPlanRead",
+    "MembershipPlanCreate",
+    "MembershipPlanUpdate",
+]
+
+
+# ===== FILE: app\schemas\program_type.py =====
+
+# app/schemas/program_type.py
+
+from typing import Optional
+from pydantic import BaseModel
+
+
+class ProgramTypeBase(BaseModel):
+    """Базовые данные о типе программы (йога, стретчинг и т.п.)."""
+    name: str
+    description: Optional[str] = None
+    is_group: bool  # ← добавили это поле
+
+    class Config:
+        orm_mode = True
+
+
+class ProgramTypeRead(ProgramTypeBase):
+    """То, что отдаём наружу в API."""
+    id: int
+
+
+class ProgramTypeCreate(ProgramTypeBase):
+    """Если когда-нибудь будем создавать типы программ через API."""
+    pass
+
+
+class ProgramTypeUpdate(BaseModel):
+    """Обновление типа программы (все поля необязательны)."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+__all__ = [
+    "ProgramTypeBase",
+    "ProgramTypeRead",
+    "ProgramTypeCreate",
+    "ProgramTypeUpdate",
+]
+
+
+
+# ===== FILE: app\schemas\trainer.py =====
+
+from pydantic import BaseModel
+
+
+class TrainerRead(BaseModel):
+    id: int
+    full_name: str
+    bio: str | None = None
+    photo_url: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+
+# ===== FILE: app\schemas\user_auth.py =====
+
+# app/schemas/user_auth.py
+from __future__ import annotations
+
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import ConfigDict
+
+from app.models.user import UserRole
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+
+# --- НОВОЕ: создание тренера админом/суперадмином ---
+
+class AdminCreateTrainer(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    # здесь позже можно добавить поля для тренерского профиля:
+    # bio: Optional[str] = None
+    # experience_years: Optional[int] = None
+
+
+# --- НОВОЕ: создание админа суперадмином ---
+
+class SuperadminCreateAdmin(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserOut(BaseModel):
+    # Pydantic v2: говорим, что модель может читать атрибуты ORM-объекта
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: EmailStr
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    role: UserRole  # enum нормально поддерживается
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class ProfileOut(BaseModel):
+    """Публичное представление профиля текущего пользователя."""
+
+    id: int
+    email: EmailStr
+    role: UserRole
+    full_name: str | None = None
+    phone: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProfileUpdateIn(BaseModel):
+    """
+    Данные для обновления профиля.
+
+    - full_name / phone можно менять независимо.
+    - Для смены пароля нужно указать и current_password, и new_password.
+    """
+
+    full_name: str | None = None
+    phone: str | None = None
+
+    current_password: str | None = Field(
+        default=None,
+        description="Текущий пароль (нужен, если меняем пароль).",
+    )
+    new_password: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=128,
+        description="Новый пароль (минимум 8 символов).",
+    )
