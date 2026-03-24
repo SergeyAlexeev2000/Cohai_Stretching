@@ -29,6 +29,9 @@ from app.models import class_session  # noqa: F401
 from app.models import lead  # noqa: F401
 from app.models import user  # noqa: F401
 from app.models import attendance  # noqa: F401
+from app.models import studio_settings  # noqa: F401
+from app.models import queue  # noqa: F401
+
 
 # ===== B. Стандартная часть Alembic =====
 
